@@ -2,24 +2,28 @@
 #include <Servo.h>
 
 #define MOVE 1
-#define PROGRESSIVE_MOVE 2
-#define STOP 3
-
+#define STOP 2
+#define DEBUG true
+#define DEBUG_INTERVAL 200
 
 Servo escRight;
 Servo escLeft;
 
 int state = STOP;
 
-String command = "";       //String with the velocity of left motor and right motor
-
-String valuesComand[2];  //["vLeft", "vRight"] 
-
+String inputString = "";       //String with the velocity of left motor and right motor ["vLeft", "vRight"] 
 
 int currentVLeft = 1500;
 int currentVRight = 1500;
 int targetVLeft = 1500;
 int targetVRight = 1500;
+
+String targetVLeftString;
+String targetVRightString;
+
+unsigned long lastDebugTime = 0;
+unsigned long lastMoveTime = 0;
+
 
 void moveMotors(){
   //escLeft.writeMicroseconds(currentVLeft);
@@ -32,74 +36,68 @@ void moveMotors(){
   Serial.println(currentVRight);*/
 }
 
-//iguala las velocidades, da igual en que sentido sea, eso ya se maneja desde las otras funciones
-void progressMove(){   
+void displayDebug() {
+  if (!DEBUG) return;
+  unsigned long now = millis();
+  if (now - lastDebugTime < DEBUG_INTERVAL) return;
+  lastDebugTime = now;
 
+  Serial.print("Left:");
+  Serial.print(currentLeft);
+  Serial.print(" Right:");
+  Serial.println(currentRight);
+}
+
+
+void smoothOperator(){
   if(currentVLeft!=targetVLeft || currentVRight!=targetVRight){
-    if(currentVLeft!=targetVLeft){
-      currentVLeft+=(currentVLeft<targetVLeft)?1:-1;
-    }
-    if(currentVRight!=targetVRight){
-      currentVRight+=(currentVRight<targetVRight)?1:-1;
-    }
-  }else if(currentVLeft==targetVLeft && currentVRight==targetVRight){
-    state = MOVE;
-    Serial.print("He alcanzado el objetivo de las velocidades: ");
-    Serial.print(currentVLeft);
-    Serial.print(" : ");
-    Serial.println(currentVRight);
-  }
-  delay(20);
+    unsigned long now = millis();
+    if (now - lastMoveTime >= 10) {
+      lastMoveTime = now;
+      if (currentLeft < targetLeft) currentLeft++;
+      else if (currentLeft > targetLeft) currentLeft--;
   
+      if (currentRight < targetRight) currentRight++;
+      else if (currentRight > targetRight) currentRight--;
+      }
+  }
+  moveMotors();
+}
+
+void handleSerialCommand() {
+  if (Serial.available()) {
+    inputString = Serial.readStringUntil('\n');
+    getValues();
+    targetVLeft = targetVLeftString;
+    targetVRight = targetVRightString;
+    Serial.print("values received: ");
+    Serial.print(targetVLeft);
+    Serial.print(", ");
+    Serial.println(targetVRight);
+    checkData();
+  }
 }
 
 void getValues(){
-  int pos=0;
-  for(char caracter:command){
-    if(caracter != ' '){
-      valuesComand[pos] += caracter;
-    }else{
-      pos+=1;
-    }
-  }
+   // --- Split command and value ---
+  int spaceIndex = inputString.indexOf(' ');
+  targetVLeftString = (spaceIndex == -1) ? inputString : inputString.substring(0, spaceIndex);
+  targetVRightString = (spaceIndex == -1) ? "" : inputString.substring(spaceIndex + 1);
+
 }
 
 void checkData(){
- 
   if(targetVLeft == 0){
     targetVLeft = 1500;
-  }else if(targetVLeft<1000){
-    targetVLeft = 1000;
-  }else if(targetVLeft>2000){
-    targetVLeft = 2000;
+  }else {
+     targetVLeft = constrain(targetVLeft, 1000, 2000);
   }
-
   if(targetVRight==0){
     targetVRight = 1500;
-  }else if(targetVRight<1000){
-    targetVRight = 1000;
-  }else if(targetVRight>2000){
-    targetVRight = 2000;
+  }else{
+     targetVRight = constrain(targetVRight, 1000, 2000);
   }
-  state = PROGRESSIVE_MOVE;
 }
-
-void receiveCommand(){
-  command = Serial.readString();
-  command.trim();
-  getValues();
-  targetVLeft = valuesComand[0].toInt();
-  targetVRight = valuesComand[1].toInt();
-  Serial.print("values received: ");
-  Serial.print(valuesComand[0]);
-  Serial.print(", ");
-  Serial.println(valuesComand[1]);
-  checkData();
-  valuesComand[0] = "";
-  valuesComand[1] = "";
-}
-
-
 
 void setup() {
   /*
@@ -125,32 +123,20 @@ void setup() {
   Serial.println("Iniciado...");
   delay(2000);
 
-  
 }
 
 void loop() {
-  
-  if(Serial.available()){
-   receiveCommand();
-  }
-
   switch (state){
     case MOVE:
-      moveMotors();
-      break;
-    case PROGRESSIVE_MOVE:
-      progressMove();
-      moveMotors();
+      handleSerialCommand();
+      smoothOperator();
+      displayDebug();
       break;
     case STOP:
       targetVLeft = 1500;
       targetVRight = 1500;
-      state = PROGRESSIVE_MOVE;
+      state = MOVE;
+      displayDebug();
       break;
-   
-      
   }
-  
-
-
 }
