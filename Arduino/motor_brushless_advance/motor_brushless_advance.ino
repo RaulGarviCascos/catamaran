@@ -26,8 +26,8 @@ unsigned long lastMoveTime = 0;
 
 
 void moveMotors(){
-  //escLeft.writeMicroseconds(currentVLeft);
-  //escRight.writeMicroseconds(currentVRight);
+  escLeft.writeMicroseconds(currentVLeft);
+  escRight.writeMicroseconds(currentVRight);
 
   
   /*Serial.print("muevo motor izquierdo:");
@@ -43,9 +43,9 @@ void displayDebug() {
   lastDebugTime = now;
 
   Serial.print("Left:");
-  Serial.print(currentLeft);
+  Serial.print(currentVLeft);
   Serial.print(" Right:");
-  Serial.println(currentRight);
+  Serial.println(currentVRight);
 }
 
 
@@ -54,11 +54,11 @@ void smoothOperator(){
     unsigned long now = millis();
     if (now - lastMoveTime >= 10) {
       lastMoveTime = now;
-      if (currentLeft < targetLeft) currentLeft++;
-      else if (currentLeft > targetLeft) currentLeft--;
+      if (currentVLeft < targetVLeft) currentVLeft++;
+      else if (currentVLeft > targetVLeft) currentVLeft--;
   
-      if (currentRight < targetRight) currentRight++;
-      else if (currentRight > targetRight) currentRight--;
+      if (currentVRight < targetVRight) currentVRight++;
+      else if (currentVRight > targetVRight) currentVRight--;
       }
   }
   moveMotors();
@@ -68,8 +68,8 @@ void handleSerialCommand() {
   if (Serial.available()) {
     inputString = Serial.readStringUntil('\n');
     getValues();
-    targetVLeft = targetVLeftString;
-    targetVRight = targetVRightString;
+    targetVLeft = targetVLeftString.toInt();
+    targetVRight = targetVRightString.toInt();
     Serial.print("values received: ");
     Serial.print(targetVLeft);
     Serial.print(", ");
@@ -101,7 +101,7 @@ void checkData(){
 
 void setup() {
   /*
-  
+  */
   escRight.attach(9); // ESC signal on pin 9
   escLeft.attach(11);
   
@@ -118,10 +118,12 @@ void setup() {
   Serial.println("Calibration done!");
   
   Serial.println("initial value: 1500");
-  */
+  
+  /*
   Serial.begin(9600);
   Serial.println("Iniciado...");
   delay(2000);
+  */
 
 }
 
