@@ -28,7 +28,8 @@ void moveMotors(int vLeft,int vRight){
   Serial.println(vRight);
 }
 
-int* progressMove(int vOldLeft,int vOldRight,int vNewLeft,int vNewRight,int currentState){   //iguala las velocidades, da igual en que sentido sea, eso ya se maneja desde las otras funciones
+//iguala las velocidades, da igual en que sentido sea, eso ya se maneja desde las otras funciones
+void progressMove(int vOldLeft,int vOldRight,int vNewLeft,int vNewRight,int currentState,int* newValues){   
   
   if(vOldLeft!=vNewLeft || vOldRight!=vNewRight){
     if(vOldLeft!=vNewLeft){
@@ -40,8 +41,7 @@ int* progressMove(int vOldLeft,int vOldRight,int vNewLeft,int vNewRight,int curr
   }else if(vOldLeft==vNewLeft && vOldRight==vNewRight){
     currentState = DEFAULT_STATE;
   }
-  int newValues [3]={vOldLeft,vOldRight,currentState};
-  return newValues;
+  newValues [3]={vOldLeft,vOldRight,currentState};
   
 }
 
@@ -63,7 +63,7 @@ int changeState(String* values){
    if(values[0] == "l" || values[0] == "left"|| values[0] == "izquierda"|| values[0] == "a"){
       state = TURN_LEFT;
     }else if(values[0] == "r" || values[0] == "right"|| values[0] == "derecha"|| values[0] == "d"){
-       state = TURN_RIGHT;
+      state = TURN_RIGHT;
     }else if(values[0] == "forward"|| values[0] == "adelante"|| values[0] == "f"|| values[0] == "w"){
       state = FORWARD;
     }else if(values[0] == "backward"|| values[0] == "detras"|| values[0] == "b"|| values[0] == "s"){
@@ -122,29 +122,41 @@ void loop() {
   switch (state){
     case TURN_LEFT:
       int currentValues [3] = {};
-      currentValues = progressMove(vOldLeft,vOldRight,1500,vNew,state);
+      progressMove(vOldLeft,vOldRight,1500,vNew,state,currentValues);
       vOldLeft = currentValues[0];
       vOldRight = currentValues[1];
       moveMotors(vOldLeft,vOldRight);
       state = currentValues[2];
       break;
     case TURN_RIGHT:
-      int currentValues [3] = progressMove(vOldLeft,vOldRight,vNew,1500,state);
-      moveMotors(currentValues[0],currentValues[1]);
+      int currentValues [3] {};
+      progressMove(vOldLeft,vOldRight,vNew,1500,state,currentValues);
+      vOldLeft = currentValues[0];
+      vOldRight = currentValues[1];
+      moveMotors(vOldLeft,vOldRight);
       state = currentValues[2];
       break;
     case FORWARD:
-      int currentValues [3] = progressMove(vOldLeft,vOldRight,vNew,vNew,state);
+      int currentValues [3] {};
+      progressMove(vOldLeft,vOldRight,vNew,1500,state,currentValues);
+      vOldLeft = currentValues[0];
+      vOldRight = currentValues[1];
       moveMotors(currentValues[0],currentValues[1]);
       state = currentValues[2];
       break;
     case BACKWARD:
-      int currentValues [3] = progressMove(vOldLeft,vOldRight,vNew,vNew,state);
-      moveMotors(currentValues[0],currentValues[1]);
+      int currentValues [3] {};
+      progressMove(vOldLeft,vOldRight,vNew,1500,state,currentValues);
+      vOldLeft = currentValues[0];
+      vOldRight = currentValues[1];
+      moveMotors(vOldLeft,vOldRight);
       state = currentValues[2];
       break;
     case STOP:
-      moveMotors(1500,1500);
+      vOldLeft = 1500;
+      vOldRight = 1500;
+      moveMotors(vOldLeft,vOldRight);
+      state = DEFAULT_STATE;
       break;
     case DEFAULT_STATE:
       moveMotors(vOldLeft,vOldRight);
