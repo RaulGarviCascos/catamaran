@@ -10,6 +10,8 @@ constexpr int DEBUG_INTERVAL = 200;
 
 constexpr int ESC_PIN_LEFT = 13;
 constexpr int ESC_PIN_RIGHT = 12;
+constexpr int BUTTON_PIN = 27;
+
 
 // PWM 50 Hz: 19.2MHz / 1920 / 200 = 50
 constexpr int PWM_CLOCK = 1920;
@@ -30,14 +32,7 @@ std::string targetVRightString;
 unsigned long lastDebugTime = 0;
 unsigned long lastMoveTime = 0;
 
-unsigned long millis() {
-    using namespace std::chrono;
-    auto now = steady_clock::now();                  
-    auto ms = duration_cast<milliseconds>(           
-        now.time_since_epoch()
-    ).count();
-    return static_cast<unsigned long>(ms);
-}
+
 int usToPwmValue(int micros) {
     if (micros < 1000) micros = 1000;
     if (micros > 2000) micros = 2000;
@@ -61,13 +56,14 @@ void displayDebug() {
   unsigned long now = millis();
   if (now - lastDebugTime < DEBUG_INTERVAL) return;
   lastDebugTime = now;
-  std::cout << "Left: " << currentVLeft<<" | Right: "<<currentVRight << std::endl;
+  //std::cout << "Left: " << currentVLeft<<" | Right: "<<currentVRight << std::endl;
 
 }
 
 void smoothOperator(){
   if(currentVLeft!=targetVLeft || currentVRight!=targetVRight){
     unsigned long now = millis();
+    std::cout << "Left: " << currentVLeft<<" | Right: "<<currentVRight << std::endl;
     if (now - lastMoveTime >= 10) {
       lastMoveTime = now;
       if (currentVLeft < targetVLeft) currentVLeft++;
@@ -81,7 +77,7 @@ void smoothOperator(){
 }
 
 void handleLineInput() {
-    // Si hay datos pendientes en stdin, los leemos
+  // Si hay datos pendientes en stdin, los leemos
     if (std::cin.rdbuf()->in_avail() > 0) {
         if (std::getline(std::cin, inputString)) {
             // parseo
@@ -95,8 +91,8 @@ void handleLineInput() {
             }
 
             // convertir
-            targetVLeft  = std::stoi(targetVLeftString.empty()  ? "0" : targetVLeftString);
-            targetVRight = std::stoi(targetVRightString.empty() ? "0" : targetVRightString);
+            targetVLeft  = std::stoi(targetVLeftString.empty()  ? "1500" : targetVLeftString);
+            targetVRight = std::stoi(targetVRightString.empty() ? "1500" : targetVRightString);
 
             // normalizar
             if (targetVLeft == 0)  targetVLeft  = 1500;
@@ -110,6 +106,7 @@ void handleLineInput() {
         }
     }
 }
+
 
 
 void checkData(){
@@ -126,9 +123,10 @@ void checkData(){
 }
 
 void setup() {
+  std::cout << "Iniciando en 2 sec..." << std::endl;
     if (wiringPiSetupGpio() == -1) {
         std::cerr << "Error al inicializar wiringPi\n";
-        return 1;
+        return;
     }
 
     pinMode(ESC_PIN_LEFT, PWM_OUTPUT);
@@ -139,14 +137,29 @@ void setup() {
     currentVLeft  = targetVLeft  = 1500;
     currentVRight = targetVRight = 1500;
     moveMotors();
+    pinMode(BUTTON_PIN, INPUT);  // Configurar el pin como entrada
+	  pullUpDnControl(BUTTON_PIN,PUD_UP);
     delay(2000);
 
+    std::cout << "Iniciado" << std::endl;
+  }
+
+void checkButton(){
+  int value = digitalRead(BUTTON_PIN);
+  if(value == LOW){
+    targetVLeft+= 10;
+    targetVRight+= 10;
+    delay(200);
+  }
 }
+
 
 void loopOnce() {
   switch (state){
     case MOVE:
-      handleLineInput();
+      checkButton();
+      checkData();
+      //handleLineInput();
       smoothOperator();
       displayDebug();
       break;
@@ -160,7 +173,7 @@ void loopOnce() {
 }
 
 
-int main() {
+int main() {checkData
     setup();
     while(true){
         loopOnce();
