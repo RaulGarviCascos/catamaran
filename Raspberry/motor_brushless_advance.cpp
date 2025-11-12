@@ -35,7 +35,7 @@ int usToPwmValue(int micros) {
     if(micros == 0) micros = 1500; 
     if (micros < 1000) micros = 1000;
     if (micros > 2000) micros = 2000;
-    return micros / 100; // 1000us -> 10, 1500us -> 15, 2000us -> 20
+    return (micros-1000) / 10; 
 }
 
 void moveMotors(){
@@ -108,14 +108,14 @@ void setup() {
 void checkButtons(){
   int value_pos = digitalRead(BUTTON_PIN_POS);
   if(value_pos == LOW){
-    targetVLeft = constrain(targetVLeft + 10, 1000, 2000);
-    targetVRight = constrain(targetVRight + 10, 1000, 2000);
+    targetVLeft = constrain(targetVLeft + 100, 1000, 2000);
+    targetVRight = constrain(targetVRight + 100, 1000, 2000);
     delay(200);
   }
   int value_neg = digitalRead(BUTTON_PIN_NEG);
   if(value_neg == LOW){
-    targetVLeft = constrain(targetVLeft - 10, 1000, 2000);
-    targetVRight = constrain(targetVRight - 10, 1000, 2000);
+    targetVLeft = constrain(targetVLeft - 100, 1000, 2000);
+    targetVRight = constrain(targetVRight - 100, 1000, 2000);
 	delay(200);
   }
 }
