@@ -1,0 +1,143 @@
+#include <wiringPi.h>
+#include <softPwm.h>
+#include <iostream>
+#include <string>
+#include <chrono>
+#include <thread>
+
+#define MOVE 1
+#define STOP 2
+#define DEBUG true
+#define DEBUG_INTERVAL 200  // ms
+
+// Pines WiringPi (ajusta según tu conexión real)
+#define ESC_LEFT_PIN 0   // GPIO17 (WiringPi 0)
+#define ESC_RIGHT_PIN 1  // GPIO18 (WiringPi 1)
+
+// Variables de estado
+int state = STOP;
+
+std::string inputString = "";
+
+int currentVLeft = 1500;
+int currentVRight = 1500;
+int targetVLeft = 1500;
+int targetVRight = 1500;
+
+unsigned long lastDebugTime = 0;
+unsigned long lastMoveTime = 0;
+
+// Función para obtener el tiempo actual en ms
+unsigned long millis() {
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+}
+
+// Convertir microsegundos (1000–2000) a escala 0–100 para softPwm
+int usToPwm(int us) {
+    // ESCs generalmente usan 1000us = 0, 2000us = 100
+    if (us < 1000) us = 1000;
+    if (us > 2000) us = 2000;
+    return (us - 1000) / 10;
+}
+
+void moveMotors() {
+    softPwmWrite(ESC_LEFT_PIN, usToPwm(currentVLeft));
+    softPwmWrite(ESC_RIGHT_PIN, usToPwm(currentVRight));
+}
+
+void displayDebug() {
+    if (!DEBUG) return;
+    unsigned long now = millis();
+    if (now - lastDebugTime < DEBUG_INTERVAL) return;
+    lastDebugTime = now;
+
+    std::cout << "Left: " << currentVLeft << " Right: " << currentVRight << std::endl;
+}
+
+void smoothOperator() {
+    if (currentVLeft != targetVLeft || currentVRight != targetVRight) {
+        unsigned long now = millis();
+        if (now - lastMoveTime >= 10) {
+            lastMoveTime = now;
+            if (currentVLeft < targetVLeft) currentVLeft++;
+            else if (currentVLeft > targetVLeft) currentVLeft--;
+
+            if (currentVRight < targetVRight) currentVRight++;
+            else if (currentVRight > targetVRight) currentVRight--;
+        }
+    }
+    moveMotors();
+}
+
+void getValues(std::string input) {
+    size_t spaceIndex = input.find(' ');
+    if (spaceIndex != std::string::npos) {
+        targetVLeft = std::stoi(input.substr(0, spaceIndex));
+        targetVRight = std::stoi(input.substr(spaceIndex + 1));
+    } else {
+        targetVLeft = 1500;
+        targetVRight = 1500;
+    }
+}
+
+void checkData() {
+    if (targetVLeft == 0) targetVLeft = 1500;
+    else if (targetVLeft < 1000) targetVLeft = 1000;
+    else if (targetVLeft > 2000) targetVLeft = 2000;
+
+    if (targetVRight == 0) targetVRight = 1500;
+    else if (targetVRight < 1000) targetVRight = 1000;
+    else if (targetVRight > 2000) targetVRight = 2000;
+}
+
+void handleSerialCommand() {
+    if (!std::cin.eof()) {
+        std::string line;
+        if (std::getline(std::cin, line)) {
+            inputString = line;
+            getValues(inputString);
+            checkData();
+            std::cout << "Values received: " << targetVLeft << ", " << targetVRight << std::endl;
+        }
+    }
+}
+
+void escCalibrate() {
+    std::cout << "Starting ESC calibration..." << std::endl;
+    softPwmWrite(ESC_RIGHT_PIN, usToPwm(2000));
+    softPwmWrite(ESC_LEFT_PIN, usToPwm(2000));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    softPwmWrite(ESC_RIGHT_PIN, usToPwm(1000));
+    softPwmWrite(ESC_LEFT_PIN, usToPwm(1000));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::cout << "Calibration done!" << std::endl;
+}
+
+int main() {
+    wiringPiSetup();
+    softPwmCreate(ESC_LEFT_PIN, 0, 100);
+    softPwmCreate(ESC_RIGHT_PIN, 0, 100);
+
+    escCalibrate();
+    std::cout << "Initial value: 1500" << std::endl;
+
+    while (true) {
+        switch (state) {
+            case MOVE:
+                handleSerialCommand();
+                smoothOperator();
+                displayDebug();
+                break;
+            case STOP:
+                targetVLeft = 1500;
+                targetVRight = 1500;
+                state = MOVE;
+                displayDebug();
+                break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    return 0;
+}
