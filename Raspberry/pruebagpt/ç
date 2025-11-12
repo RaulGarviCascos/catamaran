@@ -116,6 +116,7 @@ int main() {
 
     escCalibrate();
     std::cout << "Initial value: 1500" << std::endl;
+	targetVLeft = 2000;
     while (true) {
         switch (state) {
             case MOVE:
@@ -124,7 +125,7 @@ int main() {
                 displayDebug();
                 break;
             case STOP:
-                targetVLeft = 2000;
+                targetVLeft = 1500;
                 targetVRight = 1500;
                 state = MOVE;
                 displayDebug();
