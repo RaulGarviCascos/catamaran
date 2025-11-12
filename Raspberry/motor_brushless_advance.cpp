@@ -8,10 +8,11 @@ constexpr int STOP = 2;
 constexpr bool DEBUG = true;
 constexpr int DEBUG_INTERVAL = 200;
 
-constexpr int ESC_PIN_LEFT = 13;
+constexpr int ESC_PIN_LEFT = 18;
 constexpr int ESC_PIN_RIGHT = 12;
-constexpr int BUTTON_PIN = 27;
 
+constexpr int BUTTON_PIN_POS = 27;
+constexpr int BUTTON_PIN_NEG = 22;
 
 // PWM 50 Hz: 19.2MHz / 1920 / 200 = 50
 constexpr int PWM_CLOCK = 1920;
@@ -40,7 +41,7 @@ int usToPwmValue(int micros) {
 }
 
 void moveMotors(){
-    //pwmWrite(ESC_PIN_RIGHT, usToPwmValue(currentVRight));
+    pwmWrite(ESC_PIN_LEFT, usToPwmValue(currentVLeft));
     //pwmWrite(ESC_PIN_RIGHT, usToPwmValue(currentVRight));
 }
 
@@ -123,7 +124,7 @@ void checkData(){
 }
 
 void setup() {
-  std::cout << "Iniciando en 2 sec..." << std::endl;
+  std::cout << "Iniciando en 4 sec..." << std::endl;
     if (wiringPiSetupGpio() == -1) {
         std::cerr << "Error al inicializar wiringPi\n";
         return;
@@ -134,22 +135,38 @@ void setup() {
     pwmSetMode(PWM_MODE_MS);  
     pwmSetClock(PWM_CLOCK);
     pwmSetRange(PWM_RANGE);
-    currentVLeft  = targetVLeft  = 1500;
-    currentVRight = targetVRight = 1500;
+    currentVLeft  = targetVLeft  = 1000;
+    currentVRight = targetVRight = 1000;
     moveMotors();
-    pinMode(BUTTON_PIN, INPUT);  // Configurar el pin como entrada
-	  pullUpDnControl(BUTTON_PIN,PUD_UP);
+    delay(2000);
+    currentVLeft  = targetVLeft  = 2000;
+    currentVRight = targetVRight = 2000;
+    moveMotors();
+    delay(2000);
+    currentVRight = targetVRight = 1500;
+    currentVLeft  = targetVLeft  = 1500;
+    moveMotors();
+    pinMode(BUTTON_PIN_POS, INPUT);  // Configurar el pin como entrada
+    pinMode(BUTTON_PIN_NEG, INPUT);  // Configurar el pin como entrada
+	pullUpDnControl(BUTTON_PIN_POS,PUD_UP);
+	pullUpDnControl(BUTTON_PIN_NEG,PUD_UP);
     delay(2000);
 
     std::cout << "Iniciado" << std::endl;
   }
 
-void checkButton(){
-  int value = digitalRead(BUTTON_PIN);
-  if(value == LOW){
+void checkButtons(){
+  int value_pos = digitalRead(BUTTON_PIN_POS);
+  if(value_pos == LOW){
     targetVLeft+= 10;
     targetVRight+= 10;
     delay(200);
+  }
+  int value_neg = digitalRead(BUTTON_PIN_NEG);
+  if(value_neg == LOW){
+	targetVLeft-=10;
+	targetVRight-=10;
+	delay(200);
   }
 }
 
@@ -157,7 +174,7 @@ void checkButton(){
 void loopOnce() {
   switch (state){
     case MOVE:
-      checkButton();
+      checkButtons();
       checkData();
       //handleLineInput();
       smoothOperator();
@@ -173,7 +190,7 @@ void loopOnce() {
 }
 
 
-int main() {checkData
+int main() {
     setup();
     while(true){
         loopOnce();
